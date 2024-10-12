@@ -1,31 +1,21 @@
-import { ReactNode, useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { ReactNode, useEffect, useState } from "react";
+import { useQueryParam } from "./useQueryParam";
+import "./NotesApp.css";
 
 function NotesApp(): ReactNode {
-  const navigate = useNavigate();
   const [note, setNote] = useState<string>("");
-
-  const setQueryParam = (key: string, value: string): void => {
-    const params = new URLSearchParams(location.search);
-    params.set(key, value);
-    navigate({ search: params.toString() }, { replace: true });
-  };
+  const { getQueryParam, setQueryParam } = useQueryParam();
 
   const handleNoteChange = (
     event: React.SyntheticEvent<HTMLDivElement>
   ): void => {
     const newNote = event.currentTarget.textContent || "";
     const encodedNote = btoa(newNote);
-    setQueryParam("note", encodeURIComponent(encodedNote));
+    setQueryParam("n", encodeURIComponent(encodedNote));
   };
 
-  const getQueryParam = useCallback((key: string): string | null => {
-    const params = new URLSearchParams(location.search);
-    return params.get(key);
-  }, []);
-
   useEffect(() => {
-    const note = getQueryParam("note");
+    const note = getQueryParam("n");
     const decodedNote = decodeURIComponent(note || "");
     if (note) {
       setNote(atob(decodedNote));
@@ -37,15 +27,7 @@ function NotesApp(): ReactNode {
       contentEditable
       suppressContentEditableWarning={true}
       onInput={handleNoteChange}
-      style={{
-        width: "100vw",
-        height: "100vh",
-        padding: "20px",
-        boxSizing: "border-box",
-        border: "1px solid #ccc",
-        outline: "none",
-        overflowY: "auto",
-      }}
+      className="notes-app"
       dangerouslySetInnerHTML={{ __html: note }}
     ></div>
   );
