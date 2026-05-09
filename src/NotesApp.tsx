@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useRef } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { useQueryParam } from "./useQueryParam";
 import "./NotesApp.css";
 
@@ -10,66 +10,76 @@ function safeAtob(input: string) {
   return decodeURIComponent(atob(input));
 }
 
-function insertTextAtSelection(text: string): void {
-  const selection = window.getSelection();
-
-  if (!selection || selection.rangeCount === 0) {
-    return;
+function safeDecodeNote(note: string | null): string {
+  if (!note) {
+    return "";
   }
 
-  const range = selection.getRangeAt(0);
-  range.deleteContents();
+  try {
+    return safeAtob(note);
+  } catch {
+    return "";
+  }
+}
 
-  const textNode = document.createTextNode(text);
-  range.insertNode(textNode);
+function insertTextAtSelection(
+  element: HTMLTextAreaElement,
+  text: string
+): string {
+  const selectionStart = element.selectionStart;
+  const selectionEnd = element.selectionEnd;
 
-  range.setStartAfter(textNode);
-  range.collapse(true);
-  selection.removeAllRanges();
-  selection.addRange(range);
+  const nextValue =
+    element.value.slice(0, selectionStart) +
+    text +
+    element.value.slice(selectionEnd);
+
+  const nextCaretPosition = selectionStart + text.length;
+  element.setSelectionRange(nextCaretPosition, nextCaretPosition);
+
+  return nextValue;
 }
 
 function NotesApp(): ReactNode {
-  const editorRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<HTMLTextAreaElement>(null);
   const { getQueryParam, setQueryParam } = useQueryParam();
+  const [note, setNote] = useState(() => safeDecodeNote(getQueryParam("n")));
 
   const handleNoteChange = (
-    event: React.SyntheticEvent<HTMLDivElement>
+    event: React.ChangeEvent<HTMLTextAreaElement>
   ): void => {
-    const newNote = event.currentTarget.innerHTML || "";
+    const newNote = event.currentTarget.value;
+    setNote(newNote);
     setQueryParam("n", safeBtoa(newNote));
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
+  const handleKeyDown = (
+    event: React.KeyboardEvent<HTMLTextAreaElement>
+  ): void => {
     if (event.key !== "Tab") {
       return;
     }
 
     event.preventDefault();
-    insertTextAtSelection("\t");
-
-    const newNote = event.currentTarget.innerHTML || "";
-    setQueryParam("n", safeBtoa(newNote));
+    const nextNote = insertTextAtSelection(event.currentTarget, "\t");
+    setNote(nextNote);
+    setQueryParam("n", safeBtoa(nextNote));
   };
 
   useEffect(() => {
-    const note = getQueryParam("n");
-    const nextNote = safeAtob(note || "");
-
-    if (editorRef.current && editorRef.current.innerHTML !== nextNote) {
-      editorRef.current.innerHTML = nextNote;
-    }
+    const nextNote = safeDecodeNote(getQueryParam("n"));
+    setNote((currentNote) => (currentNote === nextNote ? currentNote : nextNote));
   }, [getQueryParam]);
 
   return (
-    <div
+    <textarea
       ref={editorRef}
-      contentEditable
-      suppressContentEditableWarning={true}
-      onInput={handleNoteChange}
+      value={note}
+      onChange={handleNoteChange}
       onKeyDown={handleKeyDown}
       className="notes-app"
-    ></div>
+      spellCheck={false}
+    />
   );
 }
 
