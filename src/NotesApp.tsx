@@ -112,6 +112,18 @@ function NotesApp(): ReactNode {
   };
 
   useEffect(() => {
+    const editor = editorRef.current;
+
+    if (!editor) {
+      return;
+    }
+
+    editor.focus();
+    const caretPosition = editor.value.length;
+    editor.setSelectionRange(caretPosition, caretPosition);
+  }, []);
+
+  useEffect(() => {
     const nextNote = safeDecodeNote(getQueryParam("n"));
     setNote((currentNote) => (currentNote === nextNote ? currentNote : nextNote));
   }, [getQueryParam]);
