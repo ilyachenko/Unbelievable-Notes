@@ -2,6 +2,8 @@ import { ReactNode, useEffect, useRef, useState } from "react";
 import { useQueryParam } from "./useQueryParam";
 import "./NotesApp.css";
 
+const MAX_URL_LENGTH = 2000;
+
 function safeBtoa(input: string) {
   return btoa(encodeURIComponent(input));
 }
@@ -44,6 +46,14 @@ function NotesApp(): ReactNode {
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const { getQueryParam, setQueryParam } = useQueryParam();
   const [note, setNote] = useState(() => safeDecodeNote(getQueryParam("n")));
+  const encodedNote = safeBtoa(note);
+  const nextSearch = encodedNote ? `?n=${encodedNote}` : "";
+  const currentUrlLength =
+    window.location.origin.length +
+    window.location.pathname.length +
+    nextSearch.length +
+    window.location.hash.length;
+  const charactersLeft = MAX_URL_LENGTH - currentUrlLength;
 
   const handleNoteChange = (
     event: React.ChangeEvent<HTMLTextAreaElement>
@@ -72,14 +82,21 @@ function NotesApp(): ReactNode {
   }, [getQueryParam]);
 
   return (
-    <textarea
-      ref={editorRef}
-      value={note}
-      onChange={handleNoteChange}
-      onKeyDown={handleKeyDown}
-      className="notes-app"
-      spellCheck={false}
-    />
+    <div className="notes-app-shell">
+      <textarea
+        ref={editorRef}
+        value={note}
+        onChange={handleNoteChange}
+        onKeyDown={handleKeyDown}
+        className="notes-app"
+        spellCheck={false}
+      />
+      <div className="notes-app-counter" aria-live="polite">
+        {charactersLeft >= 0
+          ? `${charactersLeft} characters left`
+          : `${Math.abs(charactersLeft)} characters over limit`}
+      </div>
+    </div>
   );
 }
 

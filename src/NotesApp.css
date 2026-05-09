@@ -1,11 +1,32 @@
-.notes-app {
+.notes-app-shell {
+  display: flex;
+  flex-direction: column;
   width: 100vw;
   height: 100vh;
+  background: #242424;
+}
+
+.notes-app {
+  width: 100%;
+  flex: 1;
   padding: 20px;
   box-sizing: border-box;
-  border: 1px solid #ccc;
+  border: none;
   outline: none;
   overflow-y: auto;
   white-space: pre-wrap;
   tab-size: 2;
+  resize: none;
+  color: rgba(255, 255, 255, 0.87);
+  background: transparent;
+  font: inherit;
+}
+
+.notes-app-counter {
+  padding: 10px 20px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(0, 0, 0, 0.18);
+  font-size: 13px;
+  line-height: 1;
 }
