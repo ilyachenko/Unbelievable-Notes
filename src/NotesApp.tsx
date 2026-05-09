@@ -42,6 +42,34 @@ function insertTextAtSelection(
   return nextValue;
 }
 
+const TEXT_SHORTCUTS = [
+  { shortcut: "(v)", replacement: "✅" },
+  { shortcut: "(m)", replacement: "👨‍💻" },
+  { shortcut: "(...)", replacement: "⋯" },
+];
+
+function replaceTextShortcuts(
+  value: string,
+  caretPosition: number
+): { value: string; caretPosition: number } {
+  let nextValue = value;
+  let nextCaretPosition = caretPosition;
+
+  TEXT_SHORTCUTS.forEach(({ shortcut, replacement }) => {
+    const valueBeforeCaret = nextValue.slice(0, nextCaretPosition);
+    const matchesBeforeCaret = valueBeforeCaret.split(shortcut).length - 1;
+
+    nextValue = nextValue.split(shortcut).join(replacement);
+    nextCaretPosition -=
+      matchesBeforeCaret * (shortcut.length - replacement.length);
+  });
+
+  return {
+    value: nextValue,
+    caretPosition: Math.max(0, nextCaretPosition),
+  };
+}
+
 function NotesApp(): ReactNode {
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const { getQueryParam, setQueryParam } = useQueryParam();
@@ -58,9 +86,16 @@ function NotesApp(): ReactNode {
   const handleNoteChange = (
     event: React.ChangeEvent<HTMLTextAreaElement>
   ): void => {
-    const newNote = event.currentTarget.value;
-    setNote(newNote);
-    setQueryParam("n", safeBtoa(newNote));
+    const { value: nextNote, caretPosition } = replaceTextShortcuts(
+      event.currentTarget.value,
+      event.currentTarget.selectionStart
+    );
+    setNote(nextNote);
+    setQueryParam("n", safeBtoa(nextNote));
+
+    requestAnimationFrame(() => {
+      event.currentTarget.setSelectionRange(caretPosition, caretPosition);
+    });
   };
 
   const handleKeyDown = (
