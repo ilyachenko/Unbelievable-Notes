@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useQueryParam } from "./useQueryParam";
 import "./NotesApp.css";
 
@@ -70,8 +70,36 @@ function replaceTextShortcuts(
   };
 }
 
+function renderFormattedNote(note: string): ReactNode[] {
+  return note.split("\n").map((line, lineIndex) => {
+    const parts = line.split(/(~~.*?~~)/g);
+
+    return (
+      <p key={`line-${lineIndex}`} className="notes-app-preview-line">
+        {parts.map((part, partIndex) => {
+          const isStrikethrough =
+            part.startsWith("~~") && part.endsWith("~~") && part.length >= 4;
+
+          if (!isStrikethrough) {
+            return (
+              <span key={`part-${lineIndex}-${partIndex}`}>{part}</span>
+            );
+          }
+
+          return (
+            <del key={`part-${lineIndex}-${partIndex}`}>
+              {part.slice(2, -2)}
+            </del>
+          );
+        })}
+      </p>
+    );
+  });
+}
+
 function NotesApp(): ReactNode {
   const editorRef = useRef<HTMLTextAreaElement>(null);
+  const pendingSelectionRef = useRef<number | null>(null);
   const { getQueryParam, setQueryParam } = useQueryParam();
   const [note, setNote] = useState(() => safeDecodeNote(getQueryParam("n")));
   const encodedNote = safeBtoa(note);
@@ -90,12 +118,9 @@ function NotesApp(): ReactNode {
       event.currentTarget.value,
       event.currentTarget.selectionStart
     );
+    pendingSelectionRef.current = caretPosition;
     setNote(nextNote);
     setQueryParam("n", safeBtoa(nextNote));
-
-    requestAnimationFrame(() => {
-      event.currentTarget.setSelectionRange(caretPosition, caretPosition);
-    });
   };
 
   const handleKeyDown = (
@@ -128,16 +153,39 @@ function NotesApp(): ReactNode {
     setNote((currentNote) => (currentNote === nextNote ? currentNote : nextNote));
   }, [getQueryParam]);
 
+  useLayoutEffect(() => {
+    const editor = editorRef.current;
+    const pendingSelection = pendingSelectionRef.current;
+
+    if (!editor || pendingSelection === null) {
+      return;
+    }
+
+    editor.setSelectionRange(pendingSelection, pendingSelection);
+    pendingSelectionRef.current = null;
+  }, [note]);
+
   return (
     <div className="notes-app-shell">
-      <textarea
-        ref={editorRef}
-        value={note}
-        onChange={handleNoteChange}
-        onKeyDown={handleKeyDown}
-        className="notes-app"
-        spellCheck={false}
-      />
+      <div className="notes-app-main">
+        <textarea
+          ref={editorRef}
+          value={note}
+          onChange={handleNoteChange}
+          onKeyDown={handleKeyDown}
+          className="notes-app"
+          spellCheck={false}
+        />
+        <div className="notes-app-preview" aria-label="Formatted note preview">
+          {note ? (
+            renderFormattedNote(note)
+          ) : (
+            <p className="notes-app-preview-placeholder">
+              Use <code>~~text~~</code> to show strikethrough here.
+            </p>
+          )}
+        </div>
+      </div>
       <div className="notes-app-counter" aria-live="polite">
         {charactersLeft >= 0
           ? `${charactersLeft} characters left`
