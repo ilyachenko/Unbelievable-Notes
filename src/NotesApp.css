@@ -10,11 +10,13 @@
   display: flex;
   flex: 1;
   min-height: 0;
+  --editor-width: 50%;
+  --preview-width: 50%;
 }
 
 .notes-app {
-  width: 50%;
-  flex: 1;
+  flex: 0 0 var(--editor-width);
+  min-width: 0;
   padding: 20px;
   box-sizing: border-box;
   border: none;
@@ -28,11 +30,36 @@
   font: inherit;
 }
 
+.notes-app-divider {
+  flex: 0 0 10px;
+  position: relative;
+  cursor: col-resize;
+  background: rgba(255, 255, 255, 0.03);
+  touch-action: none;
+}
+
+.notes-app-divider::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 56px;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.notes-app-divider:hover::before {
+  background: rgba(255, 255, 255, 0.4);
+}
+
 .notes-app-preview {
-  width: 50%;
+  flex: 0 0 var(--preview-width);
   min-height: 0;
+  min-width: 0;
   padding: 18px 20px;
-  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
   overflow-y: auto;
   color: rgba(255, 255, 255, 0.87);
   background: rgba(255, 255, 255, 0.04);
@@ -45,6 +72,14 @@
 
 .notes-app-preview-line + .notes-app-preview-line {
   margin-top: 0.5rem;
+}
+
+.notes-app-preview-link {
+  color: #7dd3fc;
+}
+
+.notes-app-preview-link:hover {
+  color: #bae6fd;
 }
 
 .notes-app-preview-placeholder {
@@ -72,7 +107,11 @@
 
   .notes-app,
   .notes-app-preview {
-    width: 100%;
+    flex-basis: auto;
+  }
+
+  .notes-app-divider {
+    display: none;
   }
 
   .notes-app-preview {
