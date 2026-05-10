@@ -3,6 +3,7 @@ import { useQueryParam } from "./useQueryParam";
 import "./NotesApp.css";
 
 const MAX_URL_LENGTH = 2000;
+const CARET_SESSION_STORAGE_KEY = "notes-app-selection";
 
 function safeBtoa(input: string) {
   return btoa(encodeURIComponent(input));
@@ -21,6 +22,55 @@ function safeDecodeNote(note: string | null): string {
     return safeAtob(note);
   } catch {
     return "";
+  }
+}
+
+type StoredSelection = {
+  note: string;
+  selectionStart: number;
+  selectionEnd: number;
+};
+
+function readStoredSelection(): StoredSelection | null {
+  try {
+    const rawValue = window.sessionStorage.getItem(CARET_SESSION_STORAGE_KEY);
+
+    if (!rawValue) {
+      return null;
+    }
+
+    const parsedValue = JSON.parse(rawValue) as Partial<StoredSelection>;
+
+    if (
+      typeof parsedValue.note !== "string" ||
+      typeof parsedValue.selectionStart !== "number" ||
+      typeof parsedValue.selectionEnd !== "number"
+    ) {
+      return null;
+    }
+
+    return {
+      note: parsedValue.note,
+      selectionStart: parsedValue.selectionStart,
+      selectionEnd: parsedValue.selectionEnd,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredSelection(
+  note: string,
+  selectionStart: number,
+  selectionEnd: number
+): void {
+  try {
+    window.sessionStorage.setItem(
+      CARET_SESSION_STORAGE_KEY,
+      JSON.stringify({ note, selectionStart, selectionEnd })
+    );
+  } catch {
+    // Ignore storage errors and keep editing functional.
   }
 }
 
@@ -99,7 +149,7 @@ function renderFormattedNote(note: string): ReactNode[] {
 
 function NotesApp(): ReactNode {
   const editorRef = useRef<HTMLTextAreaElement>(null);
-  const pendingSelectionRef = useRef<number | null>(null);
+  const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null);
   const { getQueryParam, setQueryParam } = useQueryParam();
   const [note, setNote] = useState(() => safeDecodeNote(getQueryParam("n")));
   const encodedNote = safeBtoa(note);
@@ -118,7 +168,7 @@ function NotesApp(): ReactNode {
       event.currentTarget.value,
       event.currentTarget.selectionStart
     );
-    pendingSelectionRef.current = caretPosition;
+    pendingSelectionRef.current = { start: caretPosition, end: caretPosition };
     setNote(nextNote);
     setQueryParam("n", safeBtoa(nextNote));
   };
@@ -132,8 +182,23 @@ function NotesApp(): ReactNode {
 
     event.preventDefault();
     const nextNote = insertTextAtSelection(event.currentTarget, "\t");
+    const nextCaretPosition = event.currentTarget.selectionStart;
+    pendingSelectionRef.current = {
+      start: nextCaretPosition,
+      end: nextCaretPosition,
+    };
     setNote(nextNote);
     setQueryParam("n", safeBtoa(nextNote));
+  };
+
+  const handleSelectionChange = (
+    event: React.SyntheticEvent<HTMLTextAreaElement>
+  ): void => {
+    writeStoredSelection(
+      note,
+      event.currentTarget.selectionStart,
+      event.currentTarget.selectionEnd
+    );
   };
 
   useEffect(() => {
@@ -144,6 +209,18 @@ function NotesApp(): ReactNode {
     }
 
     editor.focus();
+    const storedSelection = readStoredSelection();
+
+    if (storedSelection?.note === editor.value) {
+      const selectionStart = Math.min(
+        storedSelection.selectionStart,
+        editor.value.length
+      );
+      const selectionEnd = Math.min(storedSelection.selectionEnd, editor.value.length);
+      editor.setSelectionRange(selectionStart, selectionEnd);
+      return;
+    }
+
     const caretPosition = editor.value.length;
     editor.setSelectionRange(caretPosition, caretPosition);
   }, []);
@@ -161,8 +238,18 @@ function NotesApp(): ReactNode {
       return;
     }
 
-    editor.setSelectionRange(pendingSelection, pendingSelection);
+    editor.setSelectionRange(pendingSelection.start, pendingSelection.end);
     pendingSelectionRef.current = null;
+  }, [note]);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+
+    if (!editor) {
+      return;
+    }
+
+    writeStoredSelection(note, editor.selectionStart, editor.selectionEnd);
   }, [note]);
 
   return (
@@ -173,6 +260,9 @@ function NotesApp(): ReactNode {
           value={note}
           onChange={handleNoteChange}
           onKeyDown={handleKeyDown}
+          onSelect={handleSelectionChange}
+          onClick={handleSelectionChange}
+          onKeyUp={handleSelectionChange}
           className="notes-app"
           spellCheck={false}
         />
